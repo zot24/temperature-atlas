@@ -3,40 +3,54 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Global Temperature Atlas</title>
-    <!-- MapLibre GL JS/CSS (local-first; CDN fallbacks) -->
-    <link href="vendor/maplibre-gl.css" rel="stylesheet"
-        onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.1.2/dist/maplibre-gl.css';" />
-    <script src="vendor/maplibre-gl.js"
-        onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.1.2/dist/maplibre-gl.js';"></script>
+    <!-- MapLibre GL JS (with fallback to cdnjs if unpkg is blocked) -->
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
     <script>
-        // Extra fallbacks if jsDelivr is blocked too.
-        if (!window.maplibregl) {
-            document.write('<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"><\/script>');
-        }
         if (!window.maplibregl) {
             document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.js"><\/script>');
         }
     </script>
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.css" rel="stylesheet" />
 
     <link
         href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+
+            --ui-pad: 20px;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Instrument Sans', sans-serif;
+            background: #0a0e17;
         }
 
         #map-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
         }
 
         #map {
@@ -56,63 +70,9 @@
             height: 100%;
             pointer-events: none;
             z-index: 2;
-            display: block;
-            /* toggled on/off via UI */
-            opacity: 0.5;
+            opacity: 0;
             mix-blend-mode: multiply;
-            filter: saturate(1.35) contrast(1.15);
             transition: opacity 120ms ease;
-        }
-
-        /* Ensure popups appear ABOVE the heat canvas (canvas is z-index: 2) */
-        #map .maplibregl-popup {
-            z-index: 3;
-        }
-
-        /* Make the temperature popup readable on top of a colorful heat layer */
-        .temp-popup .maplibregl-popup-content {
-            background: rgba(18, 26, 43, 0.96);
-            color: #e8edf5;
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 12px;
-            padding: 10px 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .temp-popup .maplibregl-popup-close-button {
-            color: rgba(232, 237, 245, 0.85);
-            font-size: 18px;
-        }
-
-        .temp-popup .maplibregl-popup-close-button:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #e8edf5;
-        }
-
-        /* Popup "tip" color per anchor so it matches the popup content background */
-        .temp-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip {
-            border-bottom-color: rgba(18, 26, 43, 0.96);
-        }
-
-        .temp-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-            border-top-color: rgba(18, 26, 43, 0.96);
-        }
-
-        .temp-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-            border-right-color: rgba(18, 26, 43, 0.96);
-        }
-
-        .temp-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-            border-left-color: rgba(18, 26, 43, 0.96);
-        }
-
-        .temp-popup-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 0.2px;
-            color: #00d4ff;
-            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
         }
 
         .overlay {
@@ -123,48 +83,12 @@
             border-radius: 12px;
             padding: 12px 16px;
             color: #e8edf5;
-            /* backdrop-filter can cause WebGL compositing issues in some browsers (blank maps). */
-            backdrop-filter: none;
-        }
-
-        .search-panel {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: min(420px, calc(100vw - 40px));
-            padding: 10px 12px;
-        }
-
-        .search-label {
-            font-size: 10px;
-            color: #5a6478;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-
-        #city-search {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(0, 0, 0, 0.15);
-            color: #e8edf5;
-            font-size: 14px;
-            outline: none;
-        }
-
-        #city-search::placeholder {
-            color: rgba(232, 237, 245, 0.55);
-        }
-
-        #city-search:focus {
-            border-color: rgba(0, 212, 255, 0.5);
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+            backdrop-filter: blur(20px);
         }
 
         .logo {
-            top: 20px;
-            left: 20px;
+            top: calc(var(--ui-pad) + var(--safe-top));
+            left: calc(var(--ui-pad) + var(--safe-left));
             display: flex;
             align-items: center;
             gap: 10px;
@@ -185,8 +109,8 @@
         }
 
         .zoom-controls {
-            top: 90px;
-            left: 20px;
+            top: calc(90px + var(--safe-top));
+            left: calc(var(--ui-pad) + var(--safe-left));
             padding: 0;
         }
 
@@ -210,8 +134,8 @@
         }
 
         .month-display {
-            top: 20px;
-            right: 20px;
+            top: calc(var(--ui-pad) + var(--safe-top));
+            right: calc(var(--ui-pad) + var(--safe-right));
         }
 
         .month-label {
@@ -227,52 +151,9 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .heat-toggle {
-            margin-top: 10px;
-            width: 100%;
-            padding: 8px 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(0, 0, 0, 0.15);
-            color: #e8edf5;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .heat-toggle:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .heat-intensity {
-            margin-top: 10px;
-        }
-
-        .heat-intensity-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .heat-intensity-label {
-            font-size: 10px;
-            color: #5a6478;
-            text-transform: uppercase;
-        }
-
-        .heat-intensity-value {
-            font-size: 11px;
-            color: #e8edf5;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        #heat-intensity {
-            width: 100%;
-        }
-
         .stats-panel {
-            top: 180px;
-            left: 20px;
+            top: calc(180px + var(--safe-top));
+            left: calc(var(--ui-pad) + var(--safe-left));
             min-width: 160px;
         }
 
@@ -322,7 +203,9 @@
             left: 0;
             right: 0;
             z-index: 1000;
-            padding: 20px 30px 25px;
+            padding: 20px 30px calc(25px + var(--safe-bottom));
+            padding-left: calc(30px + var(--safe-left));
+            padding-right: calc(30px + var(--safe-right));
             background: linear-gradient(to top, rgba(10, 14, 23, 0.98), rgba(10, 14, 23, 0.7) 70%, transparent);
         }
 
@@ -429,25 +312,102 @@
             z-index: 2000;
             display: none;
         }
+
+        /* Mobile / small screens */
+        @media (max-width: 600px) {
+            :root {
+                --ui-pad: 12px;
+            }
+
+            .overlay {
+                padding: 10px 12px;
+                border-radius: 10px;
+            }
+
+            .logo-text {
+                font-size: 16px;
+            }
+
+            .logo-icon {
+                font-size: 20px;
+            }
+
+            .zoom-controls {
+                top: calc(70px + var(--safe-top));
+            }
+
+            .zoom-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 22px;
+            }
+
+            .month-value {
+                font-size: 18px;
+            }
+
+            .stats-panel {
+                top: calc(110px + var(--safe-top));
+                left: calc(var(--ui-pad) + var(--safe-left));
+                right: calc(var(--ui-pad) + var(--safe-right));
+                min-width: 0;
+            }
+
+            .month-labels {
+                justify-content: flex-start;
+                gap: 8px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 4px;
+            }
+
+            .month-labels span {
+                flex: 0 0 auto;
+            }
+
+            .bottom-panel {
+                padding: 14px 14px calc(14px + var(--safe-bottom));
+                padding-left: calc(14px + var(--safe-left));
+                padding-right: calc(14px + var(--safe-right));
+            }
+
+            .legend {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .legend-bar {
+                width: min(180px, 55vw);
+            }
+
+            #month-slider::-webkit-slider-thumb {
+                width: 24px;
+                height: 24px;
+                margin-top: -9px;
+            }
+
+            #month-slider::-moz-range-thumb {
+                width: 24px;
+                height: 24px;
+                border: none;
+                background: #fff;
+                border-radius: 50%;
+                cursor: grab;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            }
+        }
     </style>
 </head>
 
 <body>
     <div id="map-container">
-        <div id="map">
-            <canvas id="temp-canvas"></canvas>
-        </div>
+        <div id="map"></div>
+        <canvas id="temp-canvas"></canvas>
     </div>
 
     <div class="overlay logo">
         <span class="logo-icon">🌡</span>
         <div class="logo-text">Temperature <span>Atlas</span></div>
-    </div>
-
-    <div class="overlay search-panel">
-        <div class="search-label">Search city</div>
-        <input id="city-search" list="city-options" placeholder="Search city (e.g., Tokyo, Japan)" autocomplete="off">
-        <datalist id="city-options"></datalist>
     </div>
 
     <div class="overlay zoom-controls">
@@ -458,14 +418,6 @@
     <div class="overlay month-display">
         <div class="month-label">Viewing</div>
         <div class="month-value" id="current-month">January</div>
-        <button class="heat-toggle" id="toggle-heat" type="button">Heat: On</button>
-        <div class="heat-intensity">
-            <div class="heat-intensity-row">
-                <span class="heat-intensity-label">Intensity</span>
-                <span class="heat-intensity-value" id="heat-intensity-value">50%</span>
-            </div>
-            <input type="range" id="heat-intensity" min="0" max="100" value="50" />
-        </div>
     </div>
 
     <div class="overlay stats-panel">
@@ -506,143 +458,22 @@
 
         let map, citiesData = [], currentMonth = 0;
         let canvas, ctx;
+        let canvasCssWidth = 0, canvasCssHeight = 0, canvasDpr = 1;
         let renderTimeout = null;
         let isMapReady = false;
         let isDataReady = false;
-        let heatEnabled = true;
-        let heatIntensity = 0.5; // 0..1
-
-        // While dragging/zooming, we translate the canvas so the overlay visually tracks the map.
-        // Then we recompute the temperature field on interaction end for correctness.
-        let lastMoveTransform = null; // { center: LngLat }
 
         const loadingEl = document.getElementById('loading');
-
-        // City search + popups
-        const citySearchInput = document.getElementById('city-search');
-        const cityOptionsEl = document.getElementById('city-options');
-        let cityIndex = [];
-        let cityLabelToCity = new Map();
-        let selectedCity = null;
-        let cityMarker = null;
-        let cityPopup = null;
-
-        let lastClickedLngLat = null;
-        let clickPopup = null;
+        const errorEl = document.getElementById('error');
 
         function showError(message) {
             console.error(message);
-            const el = document.getElementById('error');
-            if (el) {
-                el.textContent = message;
-                el.style.display = 'block';
-                return;
-            }
-            // Fallback if the overlay element isn't present yet (or this script runs early).
-            try {
-                alert(message);
-            } catch {
-                // ignore
-            }
-        }
-
-        function normalizeText(s) {
-            return (s || '').toString().toLowerCase().trim();
-        }
-
-        function formatCityLabel(c) {
-            return `${c.city}, ${c.country}`;
-        }
-
-        function formatTempC(t) {
-            if (t == null || Number.isNaN(t)) return '—';
-            return `${Number(t).toFixed(1)}°C`;
-        }
-
-        function buildCitySearchIndex() {
-            cityIndex = (citiesData || [])
-                .filter(c => c && typeof c.city === 'string' && typeof c.country === 'string')
-                .map(c => ({ label: formatCityLabel(c), city: c }))
-                .sort((a, b) => a.label.localeCompare(b.label));
-
-            cityLabelToCity = new Map(cityIndex.map(i => [i.label, i.city]));
-
-            if (cityOptionsEl) {
-                cityOptionsEl.innerHTML = '';
-                for (const item of cityIndex) {
-                    const opt = document.createElement('option');
-                    opt.value = item.label;
-                    cityOptionsEl.appendChild(opt);
-                }
-            }
-        }
-
-        function showCity(city, { fly = true } = {}) {
-            if (!map || !city) return;
-            // Only show ONE popup at a time (city OR click).
-            if (clickPopup) clickPopup.remove();
-            lastClickedLngLat = null;
-
-            selectedCity = city;
-
-            const monthKey = MONTH_KEYS[currentMonth];
-            const temp = city[monthKey];
-
-            // Per request: popup shows ONLY the temperature.
-            const html = `<div class="temp-popup-value">${formatTempC(temp)}</div>`;
-
-            if (!cityPopup) {
-                cityPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 16, className: 'temp-popup' });
-                cityPopup.on('close', () => { selectedCity = null; });
-            }
-
-            cityPopup.setLngLat([city.lng, city.lat]).setHTML(html).addTo(map);
-
-            if (!cityMarker) {
-                cityMarker = new maplibregl.Marker({ color: '#00d4ff' }).setLngLat([city.lng, city.lat]).addTo(map);
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
             } else {
-                cityMarker.setLngLat([city.lng, city.lat]);
+                alert(message);
             }
-
-            if (fly) {
-                map.flyTo({
-                    center: [city.lng, city.lat],
-                    zoom: Math.max(map.getZoom(), 5),
-                    speed: 1.2
-                });
-            }
-        }
-
-        function showClickedTemp(lngLat) {
-            if (!map || !lngLat || !citiesData.length) return;
-            // Only show ONE popup at a time (city OR click).
-            if (cityPopup) cityPopup.remove();
-            selectedCity = null;
-            if (cityMarker) {
-                cityMarker.remove();
-                cityMarker = null;
-            }
-
-            lastClickedLngLat = lngLat;
-
-            const monthKey = MONTH_KEYS[currentMonth];
-            const temp = interpolateTemp(lngLat.lat, lngLat.lng, citiesData, monthKey);
-
-            // Per request: popup shows ONLY the temperature.
-            const html = `<div class="temp-popup-value">${formatTempC(temp)}</div>`;
-
-            if (!clickPopup) {
-                clickPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 10, className: 'temp-popup' });
-                clickPopup.on('close', () => { lastClickedLngLat = null; });
-            }
-
-            clickPopup.setLngLat(lngLat).setHTML(html).addTo(map);
-        }
-
-        function refreshInfoPopups() {
-            // Ensure we never show two popups at once.
-            if (selectedCity) return void showCity(selectedCity, { fly: false });
-            if (lastClickedLngLat) return void showClickedTemp(lastClickedLngLat);
         }
 
         function isWebGLAvailable() {
@@ -720,14 +551,16 @@
         function renderTemperatureField() {
             if (!citiesData.length || !map || !isMapReady) return;
 
-            const width = canvas.width;
-            const height = canvas.height;
+            const cssWidth = canvasCssWidth || window.innerWidth;
+            const cssHeight = canvasCssHeight || window.innerHeight;
+            const deviceWidth = canvas.width;
+            const deviceHeight = canvas.height;
             const monthKey = MONTH_KEYS[currentMonth];
 
             // Use lower resolution for performance, then scale up
             const scale = 4; // Render at 1/4 resolution
-            const renderWidth = Math.ceil(width / scale);
-            const renderHeight = Math.ceil(height / scale);
+            const renderWidth = Math.ceil(cssWidth / scale);
+            const renderHeight = Math.ceil(cssHeight / scale);
 
             const imageData = ctx.createImageData(renderWidth, renderHeight);
             const data = imageData.data;
@@ -738,8 +571,8 @@
             for (let y = 0; y < renderHeight; y++) {
                 for (let x = 0; x < renderWidth; x++) {
                     // Convert pixel -> lat/lng using the map projection (Mercator correct, antimeridian safe).
-                    const px = Math.min(width - 1, (x + 0.5) * scale);
-                    const py = Math.min(height - 1, (y + 0.5) * scale);
+                    const px = Math.min(cssWidth - 1, (x + 0.5) * scale);
+                    const py = Math.min(cssHeight - 1, (y + 0.5) * scale);
                     const lngLat = map.unproject([px, py]);
                     const lng = lngLat.lng;
                     const lat = lngLat.lat;
@@ -752,7 +585,7 @@
                         data[idx] = r;
                         data[idx + 1] = g;
                         data[idx + 2] = b;
-                        data[idx + 3] = 230; // Stronger alpha so the heat field is clearly visible
+                        data[idx + 3] = 160; // Moderate alpha for visibility + map underneath
                     } else {
                         data[idx + 3] = 0; // Transparent
                     }
@@ -767,10 +600,10 @@
             tempCtx.putImageData(imageData, 0, 0);
 
             // Scale up to full size with smoothing
-            ctx.clearRect(0, 0, width, height);
+            ctx.clearRect(0, 0, deviceWidth, deviceHeight);
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(tempCanvas, 0, 0, width, height);
+            ctx.drawImage(tempCanvas, 0, 0, deviceWidth, deviceHeight);
         }
 
         // Debounced render
@@ -778,7 +611,6 @@
             if (renderTimeout) clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
                 if (!isMapReady || !isDataReady) return;
-                if (!heatEnabled) return;
 
                 if (loadingEl) loadingEl.style.display = 'block';
 
@@ -797,13 +629,7 @@
 
         // Initialize map
         if (!window.maplibregl) {
-            showError(
-                'Map library failed to load (maplibregl is missing).\\n\\n' +
-                'If you opened this via file:// make sure these files exist next to index.html:\\n' +
-                '- vendor/maplibre-gl.js\\n' +
-                '- vendor/maplibre-gl.css\\n\\n' +
-                'Otherwise check your network / ad-blocker.'
-            );
+            showError('Map library failed to load (maplibregl is missing). Check your network / ad-blocker.');
         } else if (!isWebGLAvailable()) {
             showError('WebGL is disabled or unavailable. MapLibre requires WebGL to render the map.');
         } else {
@@ -825,6 +651,7 @@
                         }
                     },
                     layers: [
+                        { id: 'background', type: 'background', paint: { 'background-color': '#ff00ff' } },
                         { id: 'carto-raster', type: 'raster', source: 'carto-raster' }
                     ]
                 };
@@ -834,6 +661,9 @@
                     style: CARTO_RASTER_STYLE,
                     center: [0, 20],
                     zoom: 2,
+                    minZoom: 1,
+                    maxZoom: 8,
+                    maxBounds: [[-180, -85], [180, 85]],
                     dragRotate: false,
                     pitchWithRotate: false
                 });
@@ -848,160 +678,47 @@
             ctx = canvas.getContext('2d');
         }
 
-        // Heat intensity slider
-        const heatIntensitySlider = document.getElementById('heat-intensity');
-        const heatIntensityValue = document.getElementById('heat-intensity-value');
-        function applyHeatIntensity() {
-            if (!canvas) return;
-            // Base opacity is in CSS; we multiply by intensity for a predictable scale.
-            canvas.style.opacity = String(heatIntensity);
-            if (heatIntensityValue) heatIntensityValue.textContent = Math.round(heatIntensity * 100) + '%';
-        }
-        if (heatIntensitySlider) {
-            heatIntensitySlider.oninput = (e) => {
-                const v = Number(e.target.value);
-                heatIntensity = Math.max(0, Math.min(1, v / 100));
-                applyHeatIntensity();
-            };
-            // initialize from DOM
-            heatIntensity = Math.max(0, Math.min(1, Number(heatIntensitySlider.value) / 100));
-        }
-        applyHeatIntensity();
-
-        // Heat overlay toggle
-        const heatBtn = document.getElementById('toggle-heat');
-        function syncHeatUI() {
-            if (!canvas || !heatBtn) return;
-            canvas.style.display = heatEnabled ? 'block' : 'none';
-            heatBtn.textContent = heatEnabled ? 'Heat: On' : 'Heat: Off';
-            if (heatEnabled) scheduleRender();
-        }
-        if (heatBtn) {
-            heatBtn.onclick = () => {
-                heatEnabled = !heatEnabled;
-                syncHeatUI();
-                // Re-anchor movement tracking to current position.
-                if (map) lastMoveTransform = { center: map.getCenter() };
-            };
-        }
-        syncHeatUI();
-
-        // City search behavior
-        function trySelectCityFromInput() {
-            if (!citySearchInput) return;
-            const raw = (citySearchInput.value || '').trim();
-            if (!raw) return;
-
-            let city = cityLabelToCity.get(raw);
-            if (!city) {
-                const q = normalizeText(raw);
-                const match = cityIndex.find(item => {
-                    const label = normalizeText(item.label);
-                    const cityName = normalizeText(item.city.city);
-                    const country = normalizeText(item.city.country);
-                    return label.includes(q) || cityName.includes(q) || country.includes(q);
-                });
-                if (match) {
-                    city = match.city;
-                    citySearchInput.value = match.label;
-                }
-            }
-
-            if (city) showCity(city, { fly: true });
-        }
-
-        if (citySearchInput) {
-            citySearchInput.addEventListener('change', trySelectCityFromInput);
-            citySearchInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    trySelectCityFromInput();
-                    citySearchInput.blur();
-                }
-            });
-        }
-
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            if (!canvas || !ctx) return;
+            // IMPORTANT: cap DPR to reduce memory pressure on mobile (prevents WebGL map from disappearing).
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            const rect = canvas.getBoundingClientRect();
+            const cssWidth = Math.round(rect.width);
+            const cssHeight = Math.round(rect.height);
+            if (!cssWidth || !cssHeight) return;
+
+            canvasCssWidth = cssWidth;
+            canvasCssHeight = cssHeight;
+            canvasDpr = dpr;
+
+            canvas.width = Math.round(cssWidth * dpr);
+            canvas.height = Math.round(cssHeight * dpr);
+
+            // Reset any transforms (defensive) and re-render.
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            if (map) map.resize();
             scheduleRender();
         }
 
         window.addEventListener('resize', resizeCanvas);
+        if (window.visualViewport) {
+            // Helps on mobile browsers where the visual viewport changes as the URL bar collapses/expands.
+            window.visualViewport.addEventListener('resize', resizeCanvas);
+        }
         resizeCanvas();
 
         // Map events
         if (map) {
-            // On every move, translate the overlay so it tracks the map smoothly.
-            map.on('movestart', () => {
-                lastMoveTransform = { center: map.getCenter() };
-            });
-            map.on('move', () => {
-                if (!heatEnabled || !canvas || !lastMoveTransform) return;
-                try {
-                    const p0 = map.project(lastMoveTransform.center);
-                    const p1 = map.project(map.getCenter());
-                    // Translate the previously-rendered overlay in the SAME direction that the map content moves.
-                    // (Camera/center movement is the inverse of content movement.)
-                    const dx = p0.x - p1.x;
-                    const dy = p0.y - p1.y;
-                    canvas.style.transform = `translate(${dx}px, ${dy}px)`;
-                } catch {
-                    // ignore
-                }
-            });
-            map.on('moveend', () => {
-                if (!canvas) return;
-                // Reset transform and re-render accurately.
-                canvas.style.transform = '';
-                lastMoveTransform = null;
-                scheduleRender();
-            });
-            map.on('zoomstart', () => {
-                if (!canvas) return;
-                lastMoveTransform = { center: map.getCenter() };
-            });
-            map.on('zoom', () => {
-                // During zoom, a simple translate still improves perceived alignment.
-                if (!heatEnabled || !canvas || !lastMoveTransform) return;
-                try {
-                    const p0 = map.project(lastMoveTransform.center);
-                    const p1 = map.project(map.getCenter());
-                    const dx = p0.x - p1.x;
-                    const dy = p0.y - p1.y;
-                    canvas.style.transform = `translate(${dx}px, ${dy}px)`;
-                } catch {
-                    // ignore
-                }
-            });
-            map.on('zoomend', () => {
-                if (!canvas) return;
-                canvas.style.transform = '';
-                lastMoveTransform = null;
-                scheduleRender();
-            });
+            map.on('moveend', scheduleRender);
+            map.on('zoomend', scheduleRender);
             map.on('load', () => {
                 isMapReady = true;
                 console.log('Map loaded');
-                // Sometimes the map initializes before layout settles; force a resize.
-                try {
-                    map.resize();
-                    setTimeout(() => map.resize(), 0);
-                    setTimeout(() => map.resize(), 250);
-                } catch (e) {
-                    console.warn('Map resize failed:', e);
-                }
-                lastMoveTransform = { center: map.getCenter() };
                 scheduleRender();
             });
             map.on('error', (e) => {
                 console.warn('Map error:', e);
-            });
-
-            // Click to show interpolated temperature at a location
-            map.on('click', (e) => {
-                if (!isDataReady) return;
-                showClickedTemp(e.lngLat);
             });
         }
 
@@ -1026,7 +743,6 @@
             document.querySelectorAll('#month-labels span').forEach((s, i) => s.classList.toggle('active', i === m));
             updateStats();
             scheduleRender();
-            refreshInfoPopups();
         }
 
         function updateStats() {
@@ -1045,7 +761,6 @@
             isDataReady = citiesData.length > 0;
             console.log('Loaded', citiesData.length, 'cities');
             updateStats();
-            buildCitySearchIndex();
             scheduleRender();
         }
 
