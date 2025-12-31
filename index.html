@@ -70,9 +70,64 @@
             height: 100%;
             pointer-events: none;
             z-index: 2;
-            opacity: 0;
+            opacity: var(--heat-opacity, 0.35);
             mix-blend-mode: multiply;
             transition: opacity 120ms ease;
+            will-change: transform, opacity;
+            transform: translate3d(0px, 0px, 0);
+            filter: saturate(var(--heat-saturate, 1)) contrast(var(--heat-contrast, 1));
+            transform-origin: 50% 50%;
+        }
+
+        /* While panning, we translate the existing heat image with the map for smoothness */
+        #temp-canvas.is-moving {
+            opacity: var(--heat-opacity-moving, 0.18);
+        }
+
+        /* Hide during expensive re-render / zoom animations to avoid visual mismatch */
+        #temp-canvas.is-hidden {
+            opacity: 0;
+        }
+
+        /* Ensure popups appear ABOVE the heat canvas (canvas is z-index: 2) */
+        #map .maplibregl-popup {
+            z-index: 3;
+        }
+
+        /* Popup styling for temperature readouts */
+        .temp-popup .maplibregl-popup-content {
+            background: rgba(18, 26, 43, 0.96);
+            color: #e8edf5;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .temp-popup .maplibregl-popup-close-button {
+            color: rgba(232, 237, 245, 0.85);
+            font-size: 18px;
+        }
+
+        .temp-popup .maplibregl-popup-close-button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e8edf5;
+        }
+
+        .temp-popup-title {
+            font-size: 10px;
+            color: #5a6478;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .temp-popup-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #00d4ff;
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
         }
 
         .overlay {
@@ -83,7 +138,79 @@
             border-radius: 12px;
             padding: 12px 16px;
             color: #e8edf5;
-            backdrop-filter: blur(20px);
+            /* NOTE: backdrop-filter can cause WebGL canvases (MapLibre) to render blank in some browsers. */
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        .search-panel {
+            top: calc(var(--ui-pad) + var(--safe-top));
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(420px, calc(100vw - (var(--ui-pad) * 2)));
+            padding: 10px 12px;
+        }
+
+        .search-label {
+            font-size: 10px;
+            color: #5a6478;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        #city-search {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(0, 0, 0, 0.15);
+            color: #e8edf5;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #city-search::placeholder {
+            color: rgba(232, 237, 245, 0.55);
+        }
+
+        #city-search:focus {
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+        }
+
+        .search-results {
+            display: none;
+            margin-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
+            max-height: 260px;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .search-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.12);
+            color: #e8edf5;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .search-item:hover {
+            background: rgba(0, 212, 255, 0.12);
+            border-color: rgba(0, 212, 255, 0.25);
+        }
+
+        .search-item .meta {
+            display: block;
+            font-size: 11px;
+            color: #8892a6;
+            margin-top: 2px;
         }
 
         .logo {
@@ -300,6 +427,65 @@
             border-radius: 4px;
         }
 
+        .heat-controls {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .heat-row {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+
+        .heat-label {
+            font-size: 10px;
+            color: #5a6478;
+            text-transform: uppercase;
+        }
+
+        .heat-value {
+            font-size: 11px;
+            color: #e8edf5;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #heat-slider {
+            width: 100%;
+            max-width: 420px;
+            appearance: none;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #1a2540;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        #heat-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #heat-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border: none;
+            background: #fff;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
         .loading-overlay {
             position: fixed;
             top: 50%;
@@ -317,6 +503,11 @@
         @media (max-width: 600px) {
             :root {
                 --ui-pad: 12px;
+            }
+
+            .search-panel {
+                top: calc(70px + var(--safe-top));
+                width: calc(100vw - (var(--ui-pad) * 2));
             }
 
             .overlay {
@@ -347,7 +538,7 @@
             }
 
             .stats-panel {
-                top: calc(110px + var(--safe-top));
+                top: calc(140px + var(--safe-top));
                 left: calc(var(--ui-pad) + var(--safe-left));
                 right: calc(var(--ui-pad) + var(--safe-right));
                 min-width: 0;
@@ -395,6 +586,16 @@
                 cursor: grab;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
             }
+
+            #heat-slider::-webkit-slider-thumb {
+                width: 22px;
+                height: 22px;
+            }
+
+            #heat-slider::-moz-range-thumb {
+                width: 22px;
+                height: 22px;
+            }
         }
     </style>
 </head>
@@ -420,6 +621,12 @@
         <div class="month-value" id="current-month">January</div>
     </div>
 
+    <div class="overlay search-panel">
+        <div class="search-label">Search city</div>
+        <input id="city-search" type="search" placeholder="Type a city name…" autocomplete="off" spellcheck="false">
+        <div class="search-results" id="search-results"></div>
+    </div>
+
     <div class="overlay stats-panel">
         <div class="stats-title">Statistics</div>
         <div class="stat-item"><span class="stat-label">Hottest</span><span class="stat-value hot"
@@ -442,6 +649,14 @@
                 <div class="legend-bar"></div>
                 <span class="legend-label">40°C</span>
             </div>
+
+            <div class="heat-controls">
+                <div class="heat-row">
+                    <span class="heat-label">Overlay intensity</span>
+                    <span class="heat-value" id="heat-value">35%</span>
+                </div>
+                <input type="range" id="heat-slider" min="0" max="200" value="35">
+            </div>
         </div>
     </div>
 
@@ -462,9 +677,28 @@
         let renderTimeout = null;
         let isMapReady = false;
         let isDataReady = false;
+        let isZooming = false;
+
+        // Heat overlay state
+        let heatIntensityPct = 35; // 0..200 (100 = normal, >100 boosts saturation/contrast)
+        let heatOpacity = 0.35; // 0..1 (derived)
+        let heatAnchorLngLat = null; // map center when the current heat image was rendered
+        let heatAnchorPx = null;     // pixel position of heatAnchorLngLat at render time
+        let heatAnchorZoom = null;   // map zoom when the current heat image was rendered
+        let panRaf = null;
+        let idleHeatRenderTimeout = null;
+        const HEAT_IDLE_RENDER_MS = 260; // helps avoid re-render spam on tiny "bit by bit" drags
+        const HEAT_RERENDER_THRESHOLD_PX = 56; // only re-render when the pan distance is noticeable
 
         const loadingEl = document.getElementById('loading');
         const errorEl = document.getElementById('error');
+        const searchInputEl = document.getElementById('city-search');
+        const searchResultsEl = document.getElementById('search-results');
+        const heatSliderEl = document.getElementById('heat-slider');
+        const heatValueEl = document.getElementById('heat-value');
+
+        let tempPopup = null;
+        let cityIndex = []; // [{ cityRef, q }]
 
         function showError(message) {
             console.error(message);
@@ -489,6 +723,150 @@
             // Normalize to [-180, 180)
             delta = ((delta + 180) % 360 + 360) % 360 - 180;
             return delta;
+        }
+
+        function clamp01(x) {
+            return Math.max(0, Math.min(1, x));
+        }
+
+        function setHeatOpacity(next) {
+            heatOpacity = clamp01(next);
+            if (canvas) {
+                const moving = clamp01(Math.min(heatOpacity, 0.5) * 0.55);
+                canvas.style.setProperty('--heat-opacity', String(heatOpacity));
+                canvas.style.setProperty('--heat-opacity-moving', String(moving));
+            }
+            if (heatValueEl) heatValueEl.textContent = Math.round(heatOpacity * 100) + '%';
+
+            // If turned fully off, clear the canvas to avoid a stale overlay.
+            if (ctx && canvas && heatOpacity <= 0.001) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function setHeatIntensityPct(nextPct) {
+            const pct = Math.max(0, Math.min(200, Number(nextPct) || 0));
+            heatIntensityPct = pct;
+
+            // 0..100 -> opacity 0..1
+            // 100..200 -> keep opacity at 1 and boost saturation/contrast
+            const raw = pct / 100;
+            const boost = Math.max(0, raw - 1); // 0..1
+
+            const opacity = Math.min(1, raw);
+            const saturate = 1 + boost * 1.5;  // 1.0 -> 2.5
+            const contrast = 1 + boost * 0.75; // 1.0 -> 1.75
+
+            if (canvas) {
+                canvas.style.setProperty('--heat-saturate', String(saturate));
+                canvas.style.setProperty('--heat-contrast', String(contrast));
+            }
+
+            setHeatOpacity(opacity);
+            if (heatValueEl) heatValueEl.textContent = Math.round(pct) + '%';
+
+            // Keep the control in sync if this was changed programmatically.
+            if (heatSliderEl && String(heatSliderEl.value) !== String(Math.round(pct))) {
+                heatSliderEl.value = String(Math.round(pct));
+            }
+        }
+
+        function normalizeText(s) {
+            return (s || '')
+                .toString()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+        }
+
+        function clearSearchResults() {
+            if (!searchResultsEl) return;
+            searchResultsEl.innerHTML = '';
+            searchResultsEl.style.display = 'none';
+        }
+
+        function renderSearchResults(results) {
+            if (!searchResultsEl) return;
+            if (!results.length) {
+                clearSearchResults();
+                return;
+            }
+            searchResultsEl.style.display = 'block';
+            searchResultsEl.innerHTML = '';
+            for (const c of results) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'search-item';
+                btn.innerHTML = `<strong>${c.city}</strong><span class="meta">${c.country}</span>`;
+                btn.onclick = () => selectCity(c);
+                searchResultsEl.appendChild(btn);
+            }
+        }
+
+        function getMonthKey() {
+            return MONTH_KEYS[currentMonth];
+        }
+
+        function showTempPopupAt(lngLat, opts = {}) {
+            if (!map || !window.maplibregl) return;
+            if (!citiesData.length) return;
+            const monthKey = getMonthKey();
+            const t = (opts && typeof opts.temp === 'number') ? opts.temp : interpolateTemp(lngLat.lat, lngLat.lng, citiesData, monthKey);
+            const title = (opts && opts.title) ? opts.title : MONTH_FULL[currentMonth];
+            const subtitle = (opts && opts.subtitle) ? opts.subtitle : '';
+
+            const value = (t == null) ? '—' : (t.toFixed(1) + '°C');
+            const html = `
+                <div class="temp-popup-title">${title}${subtitle ? ' • ' + subtitle : ''}</div>
+                <div class="temp-popup-value">${value}</div>
+            `;
+
+            if (!tempPopup) tempPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: 'temp-popup' });
+            tempPopup.setLngLat(lngLat).setHTML(html).addTo(map);
+        }
+
+        function selectCity(city) {
+            if (!map) return;
+            clearSearchResults();
+            if (searchInputEl) {
+                searchInputEl.value = `${city.city}, ${city.country}`;
+                searchInputEl.blur();
+            }
+
+            const targetZoom = Math.max(map.getZoom ? map.getZoom() : 2, 4);
+            map.flyTo({ center: [city.lng, city.lat], zoom: targetZoom, duration: 650 });
+
+            const t = city[getMonthKey()];
+            showTempPopupAt({ lng: city.lng, lat: city.lat }, {
+                temp: (typeof t === 'number') ? t : null,
+                title: `${city.city}, ${city.country}`,
+                subtitle: MONTH_FULL[currentMonth]
+            });
+        }
+
+        function updateHeatAnchor() {
+            if (!map) return;
+            if (!map.project || !map.getCenter) return;
+            heatAnchorLngLat = map.getCenter();
+            heatAnchorPx = map.project(heatAnchorLngLat);
+            heatAnchorZoom = map.getZoom ? map.getZoom() : null;
+            if (canvas) canvas.style.transform = 'translate3d(0px, 0px, 0) scale(1)';
+        }
+
+        function getHeatTransformPx() {
+            if (!map || !map.project || !heatAnchorLngLat || !heatAnchorPx) return { dx: 0, dy: 0, dist: 0 };
+            const p = map.project(heatAnchorLngLat);
+            const dx = p.x - heatAnchorPx.x;
+            const dy = p.y - heatAnchorPx.y;
+            const dist = Math.hypot(dx, dy);
+            return { dx, dy, dist };
+        }
+
+        function cancelScheduledRender() {
+            if (renderTimeout) {
+                clearTimeout(renderTimeout);
+                renderTimeout = null;
+            }
         }
 
         // Temperature to RGB color
@@ -550,6 +928,13 @@
         // Render temperature field to canvas
         function renderTemperatureField() {
             if (!citiesData.length || !map || !isMapReady) return;
+            if (!canvas || !ctx) return;
+
+            // If the overlay is off, keep it empty.
+            if (heatOpacity <= 0.001) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
 
             const cssWidth = canvasCssWidth || window.innerWidth;
             const cssHeight = canvasCssHeight || window.innerHeight;
@@ -607,7 +992,8 @@
         }
 
         // Debounced render
-        function scheduleRender() {
+        function scheduleRender(opts = {}) {
+            const afterRender = opts && typeof opts.afterRender === 'function' ? opts.afterRender : null;
             if (renderTimeout) clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
                 if (!isMapReady || !isDataReady) return;
@@ -622,6 +1008,11 @@
                         console.error(err);
                     } finally {
                         if (loadingEl) loadingEl.style.display = 'none';
+                        // After a successful render, the heat image is now aligned to the current map view.
+                        updateHeatAnchor();
+                        if (afterRender) {
+                            try { afterRender(); } catch { }
+                        }
                     }
                 });
             }, 100);
@@ -651,7 +1042,6 @@
                         }
                     },
                     layers: [
-                        { id: 'background', type: 'background', paint: { 'background-color': '#ff00ff' } },
                         { id: 'carto-raster', type: 'raster', source: 'carto-raster' }
                     ]
                 };
@@ -661,9 +1051,6 @@
                     style: CARTO_RASTER_STYLE,
                     center: [0, 20],
                     zoom: 2,
-                    minZoom: 1,
-                    maxZoom: 8,
-                    maxBounds: [[-180, -85], [180, 85]],
                     dragRotate: false,
                     pitchWithRotate: false
                 });
@@ -677,6 +1064,18 @@
         if (canvas) {
             ctx = canvas.getContext('2d');
         }
+
+        // Heat intensity slider
+        if (heatSliderEl) {
+            // initialize UI from defaults
+            heatSliderEl.max = '200';
+            heatSliderEl.value = String(Math.round(heatIntensityPct));
+            heatSliderEl.addEventListener('input', (e) => {
+                const pct = parseInt(e.target.value, 10);
+                setHeatIntensityPct(pct);
+            });
+        }
+        setHeatIntensityPct(heatIntensityPct);
 
         function resizeCanvas() {
             if (!canvas || !ctx) return;
@@ -710,8 +1109,98 @@
 
         // Map events
         if (map) {
-            map.on('moveend', scheduleRender);
-            map.on('zoomend', scheduleRender);
+            function cancelIdleHeatRender() {
+                if (idleHeatRenderTimeout) {
+                    clearTimeout(idleHeatRenderTimeout);
+                    idleHeatRenderTimeout = null;
+                }
+            }
+
+            function scheduleIdleHeatRender(force = false) {
+                cancelIdleHeatRender();
+                if (!canvas || !ctx) return;
+                if (!isMapReady || !isDataReady) return;
+
+                idleHeatRenderTimeout = setTimeout(() => {
+                    idleHeatRenderTimeout = null;
+                    if (!map) return;
+                    if (map.isMoving && map.isMoving()) {
+                        scheduleIdleHeatRender(force);
+                        return;
+                    }
+
+                    // Only do the heavy re-render if the map moved far enough, or if forced (zoom end).
+                    const { dist } = getHeatTransformPx();
+                    if (!force && dist < HEAT_RERENDER_THRESHOLD_PX) {
+                        // Keep the shifted overlay; it stays visually aligned and avoids "bit-by-bit" render spam.
+                        if (canvas) canvas.classList.remove('is-moving');
+                        return;
+                    }
+
+                    scheduleRender({
+                        afterRender: () => {
+                            if (canvas) {
+                                canvas.classList.remove('is-hidden');
+                                canvas.classList.remove('is-moving');
+                            }
+                        }
+                    });
+                }, HEAT_IDLE_RENDER_MS);
+            }
+
+            map.on('zoomstart', () => {
+                isZooming = true;
+                cancelIdleHeatRender();
+                cancelScheduledRender();
+                if (canvas) {
+                    canvas.classList.add('is-moving');
+                    canvas.classList.remove('is-hidden');
+                }
+            });
+
+            map.on('zoomend', () => {
+                isZooming = false;
+                // Re-render immediately after zoom. We keep the previous overlay visible (scaled) while rendering.
+                if (canvas) canvas.classList.add('is-moving');
+                scheduleRender({
+                    afterRender: () => {
+                        if (canvas) canvas.classList.remove('is-moving');
+                    }
+                });
+            });
+
+            map.on('movestart', () => {
+                cancelIdleHeatRender();
+                cancelScheduledRender();
+                if (!canvas || isZooming) return;
+                if (!heatAnchorLngLat || !heatAnchorPx) updateHeatAnchor();
+                canvas.classList.add('is-moving');
+                canvas.classList.remove('is-hidden');
+            });
+
+            map.on('move', () => {
+                if (!canvas) return;
+                if (!heatAnchorLngLat || !heatAnchorPx) return;
+                if (panRaf) return;
+                panRaf = requestAnimationFrame(() => {
+                    panRaf = null;
+                    if (!canvas) return;
+                    const { dx, dy } = getHeatTransformPx();
+                    const z = map && map.getZoom ? map.getZoom() : null;
+                    const s = (heatAnchorZoom != null && z != null) ? Math.pow(2, z - heatAnchorZoom) : 1;
+                    canvas.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${s})`;
+                });
+            });
+
+            map.on('moveend', () => {
+                if (!canvas) return;
+                if (isZooming) return;
+                // If a zoom just scheduled a forced re-render, don't override it with a non-forced moveend handler.
+                if (idleHeatRenderTimeout) return;
+                // Keep overlay visible and aligned (via transform), then only re-render if needed after a short idle.
+                scheduleIdleHeatRender(false);
+            });
+
             map.on('load', () => {
                 isMapReady = true;
                 console.log('Map loaded');
@@ -719,6 +1208,11 @@
             });
             map.on('error', (e) => {
                 console.warn('Map error:', e);
+            });
+
+            // Click -> temperature popup
+            map.on('click', (e) => {
+                showTempPopupAt(e.lngLat);
             });
         }
 
@@ -762,7 +1256,58 @@
             console.log('Loaded', citiesData.length, 'cities');
             updateStats();
             scheduleRender();
+
+            // Build search index
+            cityIndex = citiesData.map(c => ({
+                cityRef: c,
+                q: normalizeText(`${c.city} ${c.country}`)
+            }));
+
+            if (searchInputEl) {
+                searchInputEl.disabled = !isDataReady;
+            }
         }
+
+        // City search behavior
+        if (searchInputEl) {
+            searchInputEl.disabled = true;
+            searchInputEl.addEventListener('input', () => {
+                if (!isDataReady || !cityIndex.length) return;
+                const q = normalizeText(searchInputEl.value).trim();
+                if (q.length < 2) {
+                    clearSearchResults();
+                    return;
+                }
+                const matches = [];
+                for (const row of cityIndex) {
+                    if (row.q.includes(q)) matches.push(row.cityRef);
+                    if (matches.length >= 8) break;
+                }
+                renderSearchResults(matches);
+            });
+
+            searchInputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    clearSearchResults();
+                    searchInputEl.blur();
+                }
+                if (e.key === 'Enter') {
+                    if (!isDataReady || !cityIndex.length) return;
+                    const q = normalizeText(searchInputEl.value).trim();
+                    if (q.length < 2) return;
+                    const first = cityIndex.find(row => row.q.includes(q));
+                    if (first) selectCity(first.cityRef);
+                }
+            });
+        }
+
+        // Click outside the search panel closes the results
+        document.addEventListener('click', (e) => {
+            if (!searchResultsEl || !searchInputEl) return;
+            const panel = searchResultsEl.closest('.search-panel');
+            if (!panel) return;
+            if (!panel.contains(e.target)) clearSearchResults();
+        }, { capture: true });
 
         // Load data (prefer JS global for file:// compatibility; fallback to fetch).
         if (window.TEMPERATURE_DATA && window.TEMPERATURE_DATA.cities) {

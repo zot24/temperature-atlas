@@ -149,5 +149,3 @@ PY
 - Source table: Wikipedia “List of cities by average temperature”
 - Map rendering: MapLibre GL JS
 - Basemap tiles: Carto Voyager raster tiles (with OpenStreetMap contributors)
-
-
